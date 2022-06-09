@@ -37,30 +37,26 @@ func NewPeerConversation(client *Client) PeerConversation {
 }
 
 type GroupConversation struct {
-	clients map[*Client]bool
+	clients cmap[string, *Client]
 	id      string
 }
 
-func (c GroupConversation) String() string {
+func (c *GroupConversation) Id() string {
 	return c.id
 }
 
-func (c GroupConversation) Id() string {
-	return c.id
+func (c *GroupConversation) AddClient(client *Client) {
+	c.clients.Store(client.Id, client)
 }
 
-func (c GroupConversation) AddClient(client *Client) {
-	c.clients[client] = true
+func (c *GroupConversation) RemoveClient(client *Client) {
+	c.clients.Delete(client.Id)
 }
 
-func (c GroupConversation) RemoveClient(client *Client) {
-	delete(c.clients, client)
-}
-
-func (c GroupConversation) DeliverMessage(msg TextMessage) {
-	for client := range c.clients {
+func (c *GroupConversation) DeliverMessage(msg TextMessage) {
+	c.clients.RRange(func(_ string, client *Client) bool {
 		if client.Id == msg.SenderId {
-			continue
+			return true
 		}
 		newMessage := TextMessage{
 			SenderId:   msg.ReceiverId,
@@ -69,10 +65,11 @@ func (c GroupConversation) DeliverMessage(msg TextMessage) {
 			Type:       TEXT_ACTION,
 		}
 		client.SendTextMessage(newMessage)
-	}
+		return false
+	})
 }
 
-func (c GroupConversation) MarshalJSON() ([]byte, error) {
+func (c *GroupConversation) MarshalJSON() ([]byte, error) {
 	return json.Marshal((&struct {
 		Id   string `json:"id"`
 		Type string `json:"type"`
@@ -85,7 +82,7 @@ func NewGroupConversation(clients ...*Client) GroupConversation {
 		clientMap[client] = true
 	}
 	return GroupConversation{
-		clients: clientMap,
+		clients: NewCmap[string, *Client](),
 		id:      uuid.NewString(),
 	}
 }
