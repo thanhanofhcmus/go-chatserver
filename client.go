@@ -59,10 +59,11 @@ func (c *Client) StartWrite() {
 					gClientRemover <- c
 				}
 			case ConversationListMessage:
-				keys := make([]Conversation, 0, len(gClients))
-				for k := range gConversations {
-					keys = append(keys, gConversations[k])
-				}
+				keys := make([]Conversation, 0, gConversations.Count())
+				gConversations.RRange(func(key string, c Conversation) bool {
+					keys = append(keys, c)
+					return true
+				})
 				err := c.Conn.WriteJSON(ConversationListMessage{Conversations: keys, Type: "get-conversation-list"})
 				if err != nil {
 					log.Println(err)
@@ -70,25 +71,25 @@ func (c *Client) StartWrite() {
 				}
 			case CreateGroupMessage:
 				conv := NewGroupConversation(msg.Clients...)
-				gConversations[conv.Id()] = conv
+				gConversations.Store(conv.Id(), conv)
 			case JoinGroupMessage:
-				var conv GroupConversation
-				for c := range gConversations {
-					if c == msg.GroupId {
-						conv = gConversations[c].(GroupConversation)
-						break
+				gConversations.Range(func(_ string, conv Conversation) bool {
+					if conv.Id() == msg.GroupId {
+						conv := conv.(GroupConversation)
+						conv.AddClient(c)
+						return false
 					}
-				}
-				conv.AddClient(c)
+					return true
+				})
 			case LeaveGroupMessage:
-				var conv GroupConversation
-				for c := range gConversations {
-					if c == msg.GroupId {
-						conv = gConversations[c].(GroupConversation)
-						break
+				gConversations.Range(func(_ string, conv Conversation) bool {
+					if conv.Id() == msg.GroupId {
+						conv := conv.(GroupConversation)
+						conv.RemoveClient(c)
+						return false
 					}
-				}
-				conv.RemoveClient(c)
+					return true
+				})
 			}
 		}
 	}
@@ -112,12 +113,13 @@ func (c *Client) processRequest(req RequestMessage) {
 			log.Print("parse JSON to TexMessage in text message error: " + err.Error())
 			return
 		}
-		for id := range gConversations {
-			if msg.ReceiverId == id {
-				gConversations[id].DeliverMessage(msg)
-				break
+		gConversations.RRange(func(_ string, conv Conversation) bool {
+			if conv.Id() == msg.ReceiverId {
+				conv.DeliverMessage(msg)
+				return false
 			}
-		}
+			return true
+		})
 	case GET_CONVERSATION_LIST_ACTION:
 		c.messageReceiver <- ConversationListMessage{}
 	case CREATE_GROUP_ACTION:

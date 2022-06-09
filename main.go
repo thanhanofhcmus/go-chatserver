@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	gClients       = make(map[Client]bool)
-	gConversations = make(map[string]Conversation)
+	gClients       = NewCmap[string, Client]()
+	gConversations = NewCmap[string, Conversation]()
 	gUpgrader      = websocket.Upgrader{
 		ReadBufferSize:  4096,
 		WriteBufferSize: 4096,
@@ -36,7 +36,6 @@ func main() {
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	socket, err := gUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		// log.Fatal(err.Error())
 		log.Println(err)
 		return
 	}
@@ -48,9 +47,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gClients[client] = true
+	gClients.Store(client.Id, client)
 	conv := NewPeerConversation(&client)
-	gConversations[conv.Id()] = conv
+	gConversations.Store(client.Id, conv)
 
 	go client.StartWrite()
 	client.StartRead() // start here instead of spawn new gorotine so that we can defer socket.close()
@@ -59,12 +58,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 func removeClient() {
 	for client := range gClientRemover {
 		log.Println("removeClient", client)
-		delete(gClients, *client)
-		for c := range gConversations {
-			if c == client.Id {
-				delete(gConversations, c)
-				break
-			}
-		}
+		gClients.Delete(client.Id)
+		gConversations.Delete(client.Id)
 	}
 }
