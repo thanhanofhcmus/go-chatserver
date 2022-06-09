@@ -37,7 +37,7 @@ func NewPeerConversation(client *Client) PeerConversation {
 }
 
 type GroupConversation struct {
-	clients cmap[string, *Client]
+	clients concurrentMap[string, *Client]
 	id      string
 }
 
@@ -82,7 +82,7 @@ func NewGroupConversation(clients ...*Client) GroupConversation {
 		clientMap[client] = true
 	}
 	return GroupConversation{
-		clients: NewCmap[string, *Client](),
+		clients: NewConcurrentMap[string, *Client](),
 		id:      uuid.NewString(),
 	}
 }

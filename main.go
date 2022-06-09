@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	gClients       = NewCmap[string, Client]()
-	gConversations = NewCmap[string, Conversation]()
+	gClients       = NewConcurrentMap[string, Client]()
+	gConversations = NewConcurrentMap[string, Conversation]()
 	gUpgrader      = websocket.Upgrader{
 		ReadBufferSize:  4096,
 		WriteBufferSize: 4096,
@@ -52,7 +52,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	gConversations.Store(client.Id, conv)
 
 	go client.StartWrite()
-	client.StartRead() // start here instead of spawn new gorotine so that we can defer socket.close()
+	client.StartRead() // start here instead of spawn new goroutine so that we can defer socket.close()
 }
 
 func removeClient() {
