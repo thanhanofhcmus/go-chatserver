@@ -56,7 +56,7 @@ func (c *GroupConv) RemoveClient(client *Client) {
 func (c *GroupConv) DeliverMessage(msg TextMessage) {
 	c.clients.RRange(func(_ string, client *Client) bool {
 		if client.Id == msg.SenderId {
-			return true
+			return false
 		}
 		newMessage := TextMessage{
 			SenderId:   msg.ReceiverId,
@@ -65,7 +65,7 @@ func (c *GroupConv) DeliverMessage(msg TextMessage) {
 			Type:       TEXT_ACTION,
 		}
 		client.SendTextMessage(newMessage)
-		return false
+		return true
 	})
 }
 
