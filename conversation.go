@@ -37,8 +37,9 @@ func NewPeerConv(client *Client) PeerConv {
 }
 
 type GroupConv struct {
-	clients concurrentMap[string, *Client]
-	id      string
+	clients       concurrentMap[string, *Client]
+	id            string
+	clientRemover chan *Client
 }
 
 func (c *GroupConv) Id() string {
@@ -50,21 +51,20 @@ func (c *GroupConv) AddClient(client *Client) {
 }
 
 func (c *GroupConv) RemoveClient(client *Client) {
-	c.clients.Delete(client.Id)
+	c.clientRemover <- client
 }
 
 func (c *GroupConv) DeliverMessage(msg TextMessage) {
 	c.clients.RRange(func(_ string, client *Client) bool {
-		if client.Id == msg.SenderId {
-			return false
+		if client.Id != msg.SenderId {
+			newMessage := TextMessage{
+				SenderId:   msg.SenderId,
+				ReceiverId: client.Id,
+				Message:    msg.Message,
+				Type:       TEXT_ACTION,
+			}
+			client.SendTextMessage(newMessage)
 		}
-		newMessage := TextMessage{
-			SenderId:   msg.ReceiverId,
-			ReceiverId: client.Id,
-			Message:    msg.Message,
-			Type:       TEXT_ACTION,
-		}
-		client.SendTextMessage(newMessage)
 		return true
 	})
 }
@@ -76,13 +76,20 @@ func (c *GroupConv) MarshalJSON() ([]byte, error) {
 	}{Id: c.id, Type: "group"}))
 }
 
+func (c *GroupConv) StartRemoveClient() {
+	for client := range c.clientRemover {
+		c.clients.Delete(client.Id)
+	}
+}
+
 func NewGroupConv(clients ...*Client) GroupConv {
 	clientMap := make(map[*Client]bool)
 	for _, client := range clients {
 		clientMap[client] = true
 	}
 	return GroupConv{
-		clients: NewConcurrentMap[string, *Client](),
-		id:      uuid.NewString(),
+		clients:       NewConcurrentMap[string, *Client](),
+		id:            uuid.NewString(),
+		clientRemover: make(chan *Client),
 	}
 }

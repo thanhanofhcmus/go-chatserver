@@ -60,5 +60,11 @@ func removeClient() {
 		log.Println("removeClient", client)
 		gClients.Delete(client.Id)
 		gConvs.Delete(client.Id)
+		gConvs.Range(func(_ string, conv Conv) bool {
+			if groupConv, ok := conv.(*GroupConv); ok {
+				groupConv.RemoveClient(client)
+			}
+			return true
+		})
 	}
 }

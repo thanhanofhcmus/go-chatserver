@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/google/uuid"
@@ -19,7 +18,7 @@ const (
 
 type Client struct {
 	Id              string          `json:"id"`
-	Conn            *websocket.Conn `json:"-"`
+	conn            *websocket.Conn `json:"-"`
 	messageReceiver chan any
 }
 
@@ -28,19 +27,15 @@ func NewClient(conn *websocket.Conn) Client {
 	log.Println("NewClient", id)
 	return Client{
 		Id:              id,
-		Conn:            conn,
+		conn:            conn,
 		messageReceiver: make(chan any),
 	}
-}
-
-func (c *Client) String() string {
-	return fmt.Sprintf("U{ %s }", c.Id)
 }
 
 func (c *Client) StartRead() {
 	for {
 		var req RequestMessage
-		if err := c.Conn.ReadJSON(&req); err != nil {
+		if err := c.conn.ReadJSON(&req); err != nil {
 			log.Print("Read from client error: ", err)
 			gClientRemover <- c
 			return
@@ -54,13 +49,13 @@ func (c *Client) StartWrite() {
 		for message := range c.messageReceiver {
 			switch msg := message.(type) {
 			case TextMessage:
-				if err := c.Conn.WriteJSON(msg); err != nil {
+				if err := c.conn.WriteJSON(msg); err != nil {
 					log.Println("Write TextMessage to client error: ", err)
 					gClientRemover <- c
 				}
 			case ConvListMessage:
 				convs := gConvs.Values()
-				err := c.Conn.WriteJSON(ConvListMessage{Conversations: convs, Type: "get-conversation-list"})
+				err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: "get-conversation-list"})
 				if err != nil {
 					log.Println("Write ConvListMessage to client error: ", err)
 					gClientRemover <- c
@@ -68,6 +63,7 @@ func (c *Client) StartWrite() {
 			case CreateGroupMessage:
 				conv := NewGroupConv(msg.Clients...)
 				gConvs.Store(conv.Id(), &conv)
+				go conv.StartRemoveClient()
 			case JoinGroupMessage:
 				gConvs.ApplyToOne(
 					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
