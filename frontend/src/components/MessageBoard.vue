@@ -21,8 +21,8 @@ import SendIcon from './icons/Send.vue';
       <div class="relative w-full p-6 overflow-y-auto h-[40rem]">
         <li class="space-y-2">
           <template v-for="msg in messages">
-            <UserMessage v-if="msg.id === id" :text="msg.message" />
-            <OtherMessage v-else :text="msg.message" :id="msg.id"/>
+            <UserMessage v-if="msg.senderId === id" :text="msg.message" />
+            <OtherMessage v-else :text="msg.message" :id="msg.senderId"/>
           </template>
         </li>
       </div>

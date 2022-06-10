@@ -63,7 +63,7 @@ export default {
         message,
         type: "text"
       }
-      this.otherConversationMessages.push({ id: this.id, message })
+      this.otherConversationMessages.push(data)
       this.socket.send(JSON.stringify({ request: "text", data }))
     },
     processMessage(msg) {
@@ -80,11 +80,11 @@ export default {
           }
           break
         case "text":
-          const { senderId: id, message } = json
+          const id = json.senderId
           if (!this.userMessages[id]) {
             this.userMessages[id] = []
           }
-          this.userMessages[id].push({ id, message })
+          this.userMessages[id].push(json)
           break
       }
     },
