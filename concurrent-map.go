@@ -77,6 +77,26 @@ func (c *concurrentMap[K, V]) Count() int {
 	return len(c.items)
 }
 
+func (c *concurrentMap[K, V]) Keys() []K {
+	c.RLock()
+	defer c.RUnlock()
+	keys := make([]K, 0, len(c.items))
+	for v := range c.items {
+		keys = append(keys, v)
+	}
+	return keys
+}
+
+func (c *concurrentMap[K, V]) Values() []V {
+	c.RLock()
+	defer c.RUnlock()
+	values := make([]V, 0, len(c.items))
+	for k := range c.items {
+		values = append(values, c.items[k])
+	}
+	return values
+}
+
 func (c *concurrentMap[K, V]) RApplyToOne(finder func(K, V) bool, applier func(K, V)) {
 	c.RRange(func(k K, v V) bool {
 		if finder(k, v) {

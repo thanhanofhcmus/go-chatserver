@@ -20,7 +20,7 @@ const (
 type Client struct {
 	Id              string          `json:"id"`
 	Conn            *websocket.Conn `json:"-"`
-	messageReceiver chan interface{}
+	messageReceiver chan any
 }
 
 func NewClient(conn *websocket.Conn) Client {
@@ -29,7 +29,7 @@ func NewClient(conn *websocket.Conn) Client {
 	return Client{
 		Id:              id,
 		Conn:            conn,
-		messageReceiver: make(chan interface{}),
+		messageReceiver: make(chan any),
 	}
 }
 
@@ -59,12 +59,8 @@ func (c *Client) StartWrite() {
 					gClientRemover <- c
 				}
 			case ConvListMessage:
-				keys := make([]Conv, 0, gConvs.Count())
-				gConvs.RRange(func(key string, c Conv) bool {
-					keys = append(keys, c)
-					return true
-				})
-				err := c.Conn.WriteJSON(ConvListMessage{Conversations: keys, Type: "get-conversation-list"})
+				convs := gConvs.Values()
+				err := c.Conn.WriteJSON(ConvListMessage{Conversations: convs, Type: "get-conversation-list"})
 				if err != nil {
 					log.Println("Write ConvListMessage to client error: ", err)
 					gClientRemover <- c
@@ -75,7 +71,7 @@ func (c *Client) StartWrite() {
 			case JoinGroupMessage:
 				gConvs.ApplyToOne(
 					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
-					func(s string, conv Conv) { conv.(*GroupConv).AddClient(c) },
+					func(_ string, conv Conv) { conv.(*GroupConv).AddClient(c) },
 				)
 			case LeaveGroupMessage:
 				gConvs.ApplyToOne(
