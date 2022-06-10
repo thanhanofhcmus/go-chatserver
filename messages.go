@@ -21,9 +21,9 @@ type TextMessage struct {
 	Type       string `json:"type"`
 }
 
-type ConversationListMessage struct {
-	Conversations []Conversation `json:"conversations"`
-	Type          string         `json:"type"`
+type ConvListMessage struct {
+	Conversations []Conv `json:"conversations"`
+	Type          string `json:"type"`
 }
 
 type CreateGroupMessage struct {

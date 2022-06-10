@@ -6,54 +6,54 @@ import (
 	"github.com/google/uuid"
 )
 
-type Conversation interface {
+type Conv interface {
 	Id() string
 	DeliverMessage(TextMessage)
 }
 
-type PeerConversation struct {
+type PeerConv struct {
 	client *Client
 }
 
-func (c PeerConversation) Id() string {
+func (c PeerConv) Id() string {
 	return c.client.Id
 }
 
-func (c PeerConversation) DeliverMessage(msg TextMessage) {
+func (c PeerConv) DeliverMessage(msg TextMessage) {
 	c.client.SendTextMessage(msg)
 }
 
-func (c PeerConversation) MarshalJSON() ([]byte, error) {
+func (c PeerConv) MarshalJSON() ([]byte, error) {
 	return json.Marshal((&struct {
 		Id   string `json:"id"`
 		Type string `json:"type"`
 	}{Id: c.client.Id, Type: "peer"}))
 }
 
-func NewPeerConversation(client *Client) PeerConversation {
-	return PeerConversation{
+func NewPeerConv(client *Client) PeerConv {
+	return PeerConv{
 		client: client,
 	}
 }
 
-type GroupConversation struct {
+type GroupConv struct {
 	clients concurrentMap[string, *Client]
 	id      string
 }
 
-func (c *GroupConversation) Id() string {
+func (c *GroupConv) Id() string {
 	return c.id
 }
 
-func (c *GroupConversation) AddClient(client *Client) {
+func (c *GroupConv) AddClient(client *Client) {
 	c.clients.Store(client.Id, client)
 }
 
-func (c *GroupConversation) RemoveClient(client *Client) {
+func (c *GroupConv) RemoveClient(client *Client) {
 	c.clients.Delete(client.Id)
 }
 
-func (c *GroupConversation) DeliverMessage(msg TextMessage) {
+func (c *GroupConv) DeliverMessage(msg TextMessage) {
 	c.clients.RRange(func(_ string, client *Client) bool {
 		if client.Id == msg.SenderId {
 			return true
@@ -69,19 +69,19 @@ func (c *GroupConversation) DeliverMessage(msg TextMessage) {
 	})
 }
 
-func (c *GroupConversation) MarshalJSON() ([]byte, error) {
+func (c *GroupConv) MarshalJSON() ([]byte, error) {
 	return json.Marshal((&struct {
 		Id   string `json:"id"`
 		Type string `json:"type"`
 	}{Id: c.id, Type: "group"}))
 }
 
-func NewGroupConversation(clients ...*Client) GroupConversation {
+func NewGroupConv(clients ...*Client) GroupConv {
 	clientMap := make(map[*Client]bool)
 	for _, client := range clients {
 		clientMap[client] = true
 	}
-	return GroupConversation{
+	return GroupConv{
 		clients: NewConcurrentMap[string, *Client](),
 		id:      uuid.NewString(),
 	}

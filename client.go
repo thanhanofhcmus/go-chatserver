@@ -41,7 +41,7 @@ func (c *Client) StartRead() {
 	for {
 		var req RequestMessage
 		if err := c.Conn.ReadJSON(&req); err != nil {
-			log.Print("read error: " + err.Error())
+			log.Print("Read from client error: ", err)
 			gClientRemover <- c
 			return
 		}
@@ -55,41 +55,33 @@ func (c *Client) StartWrite() {
 			switch msg := message.(type) {
 			case TextMessage:
 				if err := c.Conn.WriteJSON(msg); err != nil {
-					log.Println(err)
+					log.Println("Write TextMessage to client error: ", err)
 					gClientRemover <- c
 				}
-			case ConversationListMessage:
-				keys := make([]Conversation, 0, gConversations.Count())
-				gConversations.RRange(func(key string, c Conversation) bool {
+			case ConvListMessage:
+				keys := make([]Conv, 0, gConvs.Count())
+				gConvs.RRange(func(key string, c Conv) bool {
 					keys = append(keys, c)
 					return true
 				})
-				err := c.Conn.WriteJSON(ConversationListMessage{Conversations: keys, Type: "get-conversation-list"})
+				err := c.Conn.WriteJSON(ConvListMessage{Conversations: keys, Type: "get-conversation-list"})
 				if err != nil {
-					log.Println(err)
+					log.Println("Write ConvListMessage to client error: ", err)
 					gClientRemover <- c
 				}
 			case CreateGroupMessage:
-				conv := NewGroupConversation(msg.Clients...)
-				gConversations.Store(conv.Id(), conv)
+				conv := NewGroupConv(msg.Clients...)
+				gConvs.Store(conv.Id(), &conv)
 			case JoinGroupMessage:
-				gConversations.Range(func(_ string, conv Conversation) bool {
-					if conv.Id() == msg.GroupId {
-						conv := conv.(GroupConversation)
-						conv.AddClient(c)
-						return false
-					}
-					return true
-				})
+				gConvs.ApplyToOne(
+					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
+					func(s string, conv Conv) { conv.(*GroupConv).AddClient(c) },
+				)
 			case LeaveGroupMessage:
-				gConversations.Range(func(_ string, conv Conversation) bool {
-					if conv.Id() == msg.GroupId {
-						conv := conv.(GroupConversation)
-						conv.RemoveClient(c)
-						return false
-					}
-					return true
-				})
+				gConvs.ApplyToOne(
+					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
+					func(_ string, conv Conv) { conv.(*GroupConv).RemoveClient(c) },
+				)
 			}
 		}
 	}
@@ -103,50 +95,38 @@ func (c *Client) processRequest(req RequestMessage) {
 	log.Println(req)
 	switch req.Request {
 	case TEXT_ACTION:
-		bytes, err := json.Marshal(req.Data)
-		if err != nil {
-			log.Print("parse JSON from req.Data in text message error: " + err.Error())
-			return
+		if msg, ok := marshalJSON[TextMessage](req.Data); ok {
+			gConvs.RApplyToOne(
+				func(_ string, conv Conv) bool { return conv.Id() == msg.ReceiverId },
+				func(_ string, conv Conv) { conv.DeliverMessage(msg) },
+			)
 		}
-		var msg TextMessage
-		if err := json.Unmarshal(bytes, &msg); err != nil {
-			log.Print("parse JSON to TexMessage in text message error: " + err.Error())
-			return
-		}
-		gConversations.RRange(func(_ string, conv Conversation) bool {
-			if conv.Id() == msg.ReceiverId {
-				conv.DeliverMessage(msg)
-				return false
-			}
-			return true
-		})
 	case GET_CONVERSATION_LIST_ACTION:
-		c.messageReceiver <- ConversationListMessage{}
+		c.messageReceiver <- ConvListMessage{}
 	case CREATE_GROUP_ACTION:
 		c.messageReceiver <- CreateGroupMessage{Clients: []*Client{c}}
 	case JOIN_GROUP_ACTION:
-		bytes, err := json.Marshal(req.Data)
-		if err != nil {
-			log.Print("parse JSON from req.Data in join group message error: " + err.Error())
-			return
+		if msg, ok := marshalJSON[JoinGroupMessage](req.Data); ok {
+			c.messageReceiver <- msg
 		}
-		var msg JoinGroupMessage
-		if err := json.Unmarshal(bytes, &msg); err != nil {
-			log.Print("parse JSON to JoinGroupMessage in text message error: " + err.Error())
-			return
-		}
-		c.messageReceiver <- msg
 	case LEAVE_GROUP_ACTION:
-		bytes, err := json.Marshal(req.Data)
-		if err != nil {
-			log.Print("parse JSON from req.Data in join group message error: " + err.Error())
-			return
+		if msg, ok := marshalJSON[LeaveGroupMessage](req.Data); ok {
+			c.messageReceiver <- msg
 		}
-		var msg LeaveGroupMessage
-		if err := json.Unmarshal(bytes, &msg); err != nil {
-			log.Print("parse JSON to JoinGroupMessage in text message error: " + err.Error())
-			return
-		}
-		c.messageReceiver <- msg
 	}
+}
+
+func marshalJSON[T any](data any) (res T, ok bool) {
+	ok = false
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Marhaal JSON %T error: %s\n", data, err)
+		return
+	}
+	if err := json.Unmarshal(bytes, &res); err != nil {
+		log.Printf("Unmarshal JSON to %T error: %s\n", res, err)
+		return
+	}
+	ok = true
+	return
 }

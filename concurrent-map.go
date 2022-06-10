@@ -76,3 +76,23 @@ func (c *concurrentMap[K, V]) Count() int {
 	defer c.RUnlock()
 	return len(c.items)
 }
+
+func (c *concurrentMap[K, V]) RApplyToOne(finder func(K, V) bool, applier func(K, V)) {
+	c.RRange(func(k K, v V) bool {
+		if finder(k, v) {
+			applier(k, v)
+			return false
+		}
+		return true
+	})
+}
+
+func (c *concurrentMap[K, V]) ApplyToOne(finder func(K, V) bool, applier func(K, V)) {
+	c.Range(func(k K, v V) bool {
+		if finder(k, v) {
+			applier(k, v)
+			return false
+		}
+		return true
+	})
+}
