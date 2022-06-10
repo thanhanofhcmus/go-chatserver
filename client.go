@@ -40,7 +40,7 @@ func (c *Client) StartRead() {
 			gClientRemover <- c
 			return
 		}
-		c.processRequest(req)
+		go c.processRequest(req)
 	}
 }
 
@@ -80,7 +80,9 @@ func (c *Client) StartWrite() {
 }
 
 func (c *Client) SendTextMessage(msg TextMessage) {
-	c.messageReceiver <- msg
+	go func() {
+		c.messageReceiver <- msg
+	}()
 }
 
 func (c *Client) processRequest(req RequestMessage) {
