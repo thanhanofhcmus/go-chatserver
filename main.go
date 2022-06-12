@@ -27,7 +27,7 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("./frontend/dist")))
 	http.HandleFunc("/connect", handleConnections)
 
-	go removeClient()
+	go StartRemoveClient()
 
 	fmt.Println("serving")
 	http.ListenAndServe(":8000", nil)
@@ -55,9 +55,15 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	client.StartRead() // start here instead of spawn new goroutine so that we can defer socket.close()
 }
 
-func removeClient() {
+func gRemoveClient(client *Client) {
+	func() {
+		gClientRemover <- client
+	}()
+}
+
+func StartRemoveClient() {
 	for client := range gClientRemover {
-		log.Println("removeClient", client)
+		log.Println("remove client", client)
 		gClients.Delete(client.Id)
 		gConvs.Delete(client.Id)
 		gConvs.Range(func(_ string, conv Conv) bool {

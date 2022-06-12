@@ -51,7 +51,9 @@ func (c *GroupConv) AddClient(client *Client) {
 }
 
 func (c *GroupConv) RemoveClient(client *Client) {
-	c.clientRemover <- client
+	go func() {
+		c.clientRemover <- client
+	}()
 }
 
 func (c *GroupConv) DeliverMessage(msg TextMessage) {
@@ -76,20 +78,21 @@ func (c *GroupConv) MarshalJSON() ([]byte, error) {
 	}{Id: c.id, Type: "group"}))
 }
 
-func (c *GroupConv) StartRemoveClient() {
-	for client := range c.clientRemover {
-		c.clients.Delete(client.Id)
-	}
-}
-
-func NewGroupConv(clients ...*Client) GroupConv {
+func NewGroupConv(clients ...*Client) *GroupConv {
 	clientMap := make(map[*Client]bool)
 	for _, client := range clients {
 		clientMap[client] = true
 	}
-	return GroupConv{
+	conv := &GroupConv{
 		clients:       NewConcurrentMap[string, *Client](),
 		id:            uuid.NewString(),
 		clientRemover: make(chan *Client),
 	}
+	// start this group remove client goroutine
+	go func() {
+		for client := range conv.clientRemover {
+			conv.clients.Delete(client.Id)
+		}
+	}()
+	return conv
 }

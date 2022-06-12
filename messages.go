@@ -5,10 +5,6 @@ type RequestMessage struct {
 	Data    interface{} `json:"data"`
 }
 
-func (r RequestMessage) String() string {
-	return "{ " + r.Request + " }"
-}
-
 type IdMessage struct {
 	Id   string `json:"id"`
 	Type string `json:"type"`

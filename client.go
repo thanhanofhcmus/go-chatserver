@@ -37,7 +37,7 @@ func (c *Client) StartRead() {
 		var req RequestMessage
 		if err := c.conn.ReadJSON(&req); err != nil {
 			log.Print("Read from client error: ", err)
-			gClientRemover <- c
+			gRemoveClient(c)
 			return
 		}
 		go c.processRequest(req)
@@ -51,19 +51,18 @@ func (c *Client) StartWrite() {
 			case TextMessage:
 				if err := c.conn.WriteJSON(msg); err != nil {
 					log.Println("Write TextMessage to client error: ", err)
-					gClientRemover <- c
+					gRemoveClient(c)
 				}
 			case ConvListMessage:
 				convs := gConvs.Values()
 				err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: "get-conversation-list"})
 				if err != nil {
 					log.Println("Write ConvListMessage to client error: ", err)
-					gClientRemover <- c
+					gRemoveClient(c)
 				}
 			case CreateGroupMessage:
 				conv := NewGroupConv(msg.Clients...)
-				gConvs.Store(conv.Id(), &conv)
-				go conv.StartRemoveClient()
+				gConvs.Store(conv.Id(), conv)
 			case JoinGroupMessage:
 				gConvs.ApplyToOne(
 					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
