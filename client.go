@@ -45,35 +45,33 @@ func (c *Client) StartRead() {
 }
 
 func (c *Client) StartWrite() {
-	for {
-		for message := range c.messageReceiver {
-			switch msg := message.(type) {
-			case TextMessage:
-				if err := c.conn.WriteJSON(msg); err != nil {
-					log.Println("Write TextMessage to client error: ", err)
-					gRemoveClient(c)
-				}
-			case ConvListMessage:
-				convs := gConvs.Values()
-				err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: "get-conversation-list"})
-				if err != nil {
-					log.Println("Write ConvListMessage to client error: ", err)
-					gRemoveClient(c)
-				}
-			case CreateGroupMessage:
-				conv := NewGroupConv(msg.Clients...)
-				gConvs.Store(conv.Id(), conv)
-			case JoinGroupMessage:
-				gConvs.ApplyToOne(
-					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
-					func(_ string, conv Conv) { conv.(*GroupConv).AddClient(c) },
-				)
-			case LeaveGroupMessage:
-				gConvs.ApplyToOne(
-					func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
-					func(_ string, conv Conv) { conv.(*GroupConv).RemoveClient(c) },
-				)
+	for message := range c.messageReceiver {
+		switch msg := message.(type) {
+		case TextMessage:
+			if err := c.conn.WriteJSON(msg); err != nil {
+				log.Println("Write TextMessage to client error: ", err)
+				gRemoveClient(c)
 			}
+		case ConvListMessage:
+			convs := gConvs.Values()
+			err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: GET_CONVERSATION_LIST_ACTION})
+			if err != nil {
+				log.Println("Write ConvListMessage to client error: ", err)
+				gRemoveClient(c)
+			}
+		case CreateGroupMessage:
+			conv := NewGroupConv(msg.Clients...)
+			gConvs.Store(conv.Id(), conv)
+		case JoinGroupMessage:
+			gConvs.ApplyToOne(
+				func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
+				func(_ string, conv Conv) { conv.(*GroupConv).AddClient(c) },
+			)
+		case LeaveGroupMessage:
+			gConvs.ApplyToOne(
+				func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
+				func(_ string, conv Conv) { conv.(*GroupConv).RemoveClient(c) },
+			)
 		}
 	}
 }
@@ -91,7 +89,7 @@ func (c *Client) processRequest(req RequestMessage) {
 		if msg, ok := marshalJSON[TextMessage](req.Data); ok {
 			gConvs.RApplyToOne(
 				func(_ string, conv Conv) bool { return conv.Id() == msg.ReceiverId },
-				func(_ string, conv Conv) { conv.DeliverMessage(msg) },
+				func(_ string, conv Conv) { conv.DeliverTextMessage(msg) },
 			)
 		}
 	case GET_CONVERSATION_LIST_ACTION:
@@ -110,10 +108,9 @@ func (c *Client) processRequest(req RequestMessage) {
 }
 
 func marshalJSON[T any](data any) (res T, ok bool) {
-	ok = false
 	bytes, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("Marhaal JSON %T error: %s\n", data, err)
+		log.Printf("Marshal JSON %T error: %s\n", data, err)
 		return
 	}
 	if err := json.Unmarshal(bytes, &res); err != nil {

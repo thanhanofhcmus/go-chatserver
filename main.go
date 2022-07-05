@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -29,7 +28,7 @@ func main() {
 
 	go StartRemoveClient()
 
-	fmt.Println("serving")
+	log.Println("serving")
 	http.ListenAndServe(":8000", nil)
 }
 
@@ -43,7 +42,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	client := NewClient(socket)
 
 	if err := socket.WriteJSON(IdMessage{Id: client.Id, Type: "id"}); err != nil {
-		log.Println("Write IsMessage to client error: ", err)
+		log.Println("Write IdMessage to client error: ", err)
 		return
 	}
 
@@ -52,18 +51,19 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	gConvs.Store(client.Id, conv)
 
 	go client.StartWrite()
-	client.StartRead() // start here instead of spawn new goroutine so that we can defer socket.close()
+	// start here instead of spawn new goroutine so that we can defer socket.close()
+	client.StartRead()
 }
 
 func gRemoveClient(client *Client) {
-	func() {
+	go func() {
 		gClientRemover <- client
 	}()
 }
 
 func StartRemoveClient() {
 	for client := range gClientRemover {
-		log.Println("remove client", client)
+		log.Println("Remove client", client)
 		gClients.Delete(client.Id)
 		gConvs.Delete(client.Id)
 		gConvs.Range(func(_ string, conv Conv) bool {

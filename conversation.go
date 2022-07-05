@@ -8,7 +8,7 @@ import (
 
 type Conv interface {
 	Id() string
-	DeliverMessage(TextMessage)
+	DeliverTextMessage(TextMessage)
 }
 
 type PeerConv struct {
@@ -19,7 +19,7 @@ func (c PeerConv) Id() string {
 	return c.client.Id
 }
 
-func (c PeerConv) DeliverMessage(msg TextMessage) {
+func (c PeerConv) DeliverTextMessage(msg TextMessage) {
 	c.client.SendTextMessage(msg)
 }
 
@@ -31,9 +31,7 @@ func (c PeerConv) MarshalJSON() ([]byte, error) {
 }
 
 func NewPeerConv(client *Client) PeerConv {
-	return PeerConv{
-		client: client,
-	}
+	return PeerConv{client: client}
 }
 
 type GroupConv struct {
@@ -56,7 +54,7 @@ func (c *GroupConv) RemoveClient(client *Client) {
 	}()
 }
 
-func (c *GroupConv) DeliverMessage(msg TextMessage) {
+func (c *GroupConv) DeliverTextMessage(msg TextMessage) {
 	c.clients.RRange(func(_ string, client *Client) bool {
 		if client.Id != msg.SenderId {
 			newMessage := TextMessage{
