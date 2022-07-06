@@ -45,7 +45,6 @@ func (c *Client) StartWrite() {
 				gRemoveClient(c.Id)
 			}
 		case ConvListMessage:
-			// TODO: Change this to only get from db
 			convs := gConvs.Values()
 			err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: GET_CONV_LIST_ACTION})
 			if err != nil {

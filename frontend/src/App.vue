@@ -98,7 +98,7 @@ export default {
     this.socket.onmessage = ({ data }) => { this.processMessage(data) }
     this.convListRefresher = setInterval(() => {
       this.refreshConversationList()
-    }, 15000)
+    }, 1000)
   },
 }
 </script>
