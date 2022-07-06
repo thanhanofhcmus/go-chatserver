@@ -170,7 +170,9 @@ func (redis *RedisClient) processRequest(payload string) {
 		if clientId, ok := req.Data.(string); !ok {
 			log.Printf("redis processRequest, cannot parse clientId in %s\n", CLIENT_DISCONNECTED_ACTION)
 		} else {
-			gRemoveClient(clientId)
+			go func() {
+				gClientRemover <- clientId
+			}()
 		}
 	case GROUP_CREATED_ACTION:
 		if client, ok := marshalJSON[ClientConnectedMessage](req.Data); ok {

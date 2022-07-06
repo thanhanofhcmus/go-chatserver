@@ -45,7 +45,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer socket.Close()
 	client := NewClient(socket)
 
-	// TODO: push to redis
 	if err := socket.WriteJSON(IdMessage{Id: client.Id, Type: ID_ACTION}); err != nil {
 		log.Println("Write IdMessage to client error: ", err)
 		return
@@ -70,6 +69,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 func gRemoveClient(clientId string) {
 	go func() {
+		GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_DISCONNECTED_ACTION, clientId))
 		gClientRemover <- clientId
 	}()
 }
@@ -79,7 +79,6 @@ func StartRemoveClient() {
 		log.Println("Remove client", clientId)
 		gClients.Delete(clientId)
 		gConvs.Delete(clientId)
-		GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_DISCONNECTED_ACTION, clientId))
 		gConvs.Range(func(_ string, conv Conv) bool {
 			if groupConv, ok := conv.(*GroupConv); ok {
 				groupConv.RemoveClient(clientId)
