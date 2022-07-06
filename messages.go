@@ -35,6 +35,11 @@ type ClientConnectedMessage struct {
 	ServerId string `json:"serverId"`
 }
 
+type GroupCreatedMessage struct {
+	Id       string `json:"id"`
+	ServerId string `json:"serverId"`
+}
+
 type ClientRequestMessage struct {
 	Request string `json:"request"`
 	Data    any    `json:"data"`

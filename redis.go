@@ -145,6 +145,10 @@ func (redis *RedisClient) processRequest(payload string) {
 
 	log.Println(req)
 
+	if req.SenderServerId == gServerId {
+		return
+	}
+
 	switch req.Request {
 	case TEXT_OTHER_SERVER_ACTION:
 		if msg, ok := marshalJSON[TextMessage](req.Data); ok {
@@ -167,6 +171,15 @@ func (redis *RedisClient) processRequest(payload string) {
 			log.Printf("redis processRequest, cannot parse clientId in %s\n", CLIENT_DISCONNECTED_ACTION)
 		} else {
 			gRemoveClient(clientId)
+		}
+	case GROUP_CREATED_ACTION:
+		if client, ok := marshalJSON[ClientConnectedMessage](req.Data); ok {
+			conv := RemoteConv{
+				ID:       client.Id,
+				ServerID: client.ServerId,
+				Type:     GROUP_TYPE,
+			}
+			gConvs.Store(conv.ID, conv)
 		}
 	}
 }

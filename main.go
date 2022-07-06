@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -29,7 +30,9 @@ func main() {
 	go GetRedisClient().StartSendConvList()
 	go GetRedisClient().StartListening()
 
-	log.Printf("%s is serving", gServerId)
+	time.Sleep(time.Second)
+
+	log.Printf("%s is serving\n", gServerId)
 	http.ListenAndServe(":8000", nil)
 }
 
