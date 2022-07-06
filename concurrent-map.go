@@ -97,22 +97,26 @@ func (c *concurrentMap[K, V]) Values() []V {
 	return values
 }
 
-func (c *concurrentMap[K, V]) RApplyToOne(finder func(K, V) bool, consumer func(K, V)) {
+func (c *concurrentMap[K, V]) RApplyToOne(finder func(K, V) bool, consumer func(K, V)) (applied bool) {
 	c.RRange(func(k K, v V) bool {
 		if finder(k, v) {
 			consumer(k, v)
+			applied = true
 			return false
 		}
 		return true
 	})
+	return
 }
 
-func (c *concurrentMap[K, V]) ApplyToOne(finder func(K, V) bool, consumer func(K, V)) {
+func (c *concurrentMap[K, V]) ApplyToOne(finder func(K, V) bool, consumer func(K, V)) (applied bool) {
 	c.Range(func(k K, v V) bool {
 		if finder(k, v) {
 			consumer(k, v)
+			applied = true
 			return false
 		}
 		return true
 	})
+	return
 }
