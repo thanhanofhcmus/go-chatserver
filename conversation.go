@@ -9,15 +9,21 @@ import (
 
 type Conv interface {
 	Id() string
+	ServerId() string
 	DeliverTextMessage(TextMessage)
 }
 
 type PeerConv struct {
-	client *Client
+	client   *Client
+	serverId string
 }
 
 func (c PeerConv) Id() string {
 	return c.client.Id
+}
+
+func (c PeerConv) ServerId() string {
+	return c.serverId
 }
 
 func (c PeerConv) DeliverTextMessage(msg TextMessage) {
@@ -26,23 +32,29 @@ func (c PeerConv) DeliverTextMessage(msg TextMessage) {
 
 func (c PeerConv) MarshalJSON() ([]byte, error) {
 	return json.Marshal((&struct {
-		Id   string `json:"id"`
-		Type string `json:"type"`
-	}{Id: c.client.Id, Type: "peer"}))
+		Id       string `json:"id"`
+		Type     string `json:"type"`
+		ServerId string `json:"severId"`
+	}{Id: c.client.Id, ServerId: c.serverId, Type: "peer"}))
 }
 
 func NewPeerConv(client *Client) PeerConv {
-	return PeerConv{client: client}
+	return PeerConv{client: client, serverId: gServerId}
 }
 
 type GroupConv struct {
 	clients       concurrentMap[string, *Client]
 	id            string
+	serverId      string
 	clientRemover chan *Client
 }
 
 func (c *GroupConv) Id() string {
 	return c.id
+}
+
+func (c *GroupConv) ServerId() string {
+	return c.serverId
 }
 
 func (c *GroupConv) AddClient(client *Client) {
@@ -72,9 +84,10 @@ func (c *GroupConv) DeliverTextMessage(msg TextMessage) {
 
 func (c *GroupConv) MarshalJSON() ([]byte, error) {
 	return json.Marshal((&struct {
-		Id   string `json:"id"`
-		Type string `json:"type"`
-	}{Id: c.id, Type: "group"}))
+		Id       string `json:"id"`
+		Type     string `json:"type"`
+		ServerId string `json:"serverId"`
+	}{Id: c.id, ServerId: c.serverId, Type: "group"}))
 }
 
 func NewGroupConv(clients ...*Client) *GroupConv {
@@ -85,6 +98,7 @@ func NewGroupConv(clients ...*Client) *GroupConv {
 	conv := &GroupConv{
 		clients:       NewConcurrentMap[string, *Client](),
 		id:            uuid.NewString(),
+		serverId:      gServerId,
 		clientRemover: make(chan *Client),
 	}
 	// start this group remove client goroutine
@@ -97,8 +111,9 @@ func NewGroupConv(clients ...*Client) *GroupConv {
 }
 
 type RemoteConv struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	ServerID string `json:"serverId"`
 }
 
 func NewRemoteConvFromJSON(source string) (c RemoteConv, err error) {
@@ -108,6 +123,10 @@ func NewRemoteConvFromJSON(source string) (c RemoteConv, err error) {
 
 func (c RemoteConv) Id() string {
 	return c.ID
+}
+
+func (c RemoteConv) ServerId() string {
+	return c.ServerID
 }
 
 func (c RemoteConv) DeliverTextMessage(msg TextMessage) {

@@ -1,8 +1,38 @@
 package main
 
-type RequestMessage struct {
-	Request string      `json:"request"`
-	Data    interface{} `json:"data"`
+const (
+	// server - server actions
+	TEXT_OTHER_SERVER_ACTION   = "text-other-serer"
+	CLIENT_CONNECTED_ACTION    = "client-connected"
+	CLIENT_DISCONNECTED_ACTION = "client-disconnected"
+	GROUP_CREATED_ACTION       = "group-created"
+
+	// client - server actions
+	ID_ACTION            = "id"
+	TEXT_ACTION          = "text"
+	GET_CONV_LIST_ACTION = "get-conversation-list"
+	CREATE_GROUP_ACTION  = "create-group"
+	JOIN_GROUP_ACTION    = "join-group"
+	LEAVE_GROUP_ACTION   = "leave-group"
+)
+
+type ServerRequestMessage struct {
+	Request        string `json:"request"`
+	SenderServerId string `json:"senderServerId"`
+	Data           any    `json:"data"`
+}
+
+func NewServerRequestMessage(request string, data any) ServerRequestMessage {
+	return ServerRequestMessage{
+		Request:        request,
+		SenderServerId: gServerId,
+		Data:           data,
+	}
+}
+
+type ClientRequestMessage struct {
+	Request string `json:"request"`
+	Data    any    `json:"data"`
 }
 
 type IdMessage struct {

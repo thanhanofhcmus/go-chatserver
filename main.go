@@ -2,9 +2,7 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -23,14 +21,13 @@ var (
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
-	http.Handle("/", http.FileServer(http.Dir("./frontend/dist/assets")))
+	http.Handle("/", http.FileServer(http.Dir("./frontend/dist")))
 	http.HandleFunc("/connect", handleConnections)
 
 	go StartRemoveClient()
 
-	go StartSendConvListToRedis()
+	go GetRedisClient().StartSendConvList()
+	go GetRedisClient().StartListening()
 
 	log.Printf("%s is serving", gServerId)
 	http.ListenAndServe(":8000", nil)
@@ -45,10 +42,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer socket.Close()
 	client := NewClient(socket)
 
-	if err := socket.WriteJSON(IdMessage{Id: client.Id, Type: "id"}); err != nil {
+	// TODO: push to redis
+	if err := socket.WriteJSON(IdMessage{Id: client.Id, Type: ID_ACTION}); err != nil {
 		log.Println("Write IdMessage to client error: ", err)
 		return
 	}
+	GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_CONNECTED_ACTION, client.Id))
 
 	gClients.Store(client.Id, client)
 	conv := NewPeerConv(&client)
@@ -70,6 +69,7 @@ func StartRemoveClient() {
 		log.Println("Remove client", client)
 		gClients.Delete(client.Id)
 		gConvs.Delete(client.Id)
+		GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_DISCONNECTED_ACTION, client.Id))
 		gConvs.Range(func(_ string, conv Conv) bool {
 			if groupConv, ok := conv.(*GroupConv); ok {
 				groupConv.RemoveClient(client)

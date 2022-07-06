@@ -26,7 +26,8 @@ export default {
       otherConversation: undefined,
       otherConversationMessages: [],
       conversationsList: [],
-      userMessages: {}
+      userMessages: {},
+      convListRefresher: null
     }
   },
   methods: {
@@ -92,9 +93,12 @@ export default {
   mounted() {
     this.socket = new WebSocket(`ws://localhost:8000/connect`)
     this.socket.onopen = () => {
-      this.socket.send(JSON.stringify({ request: "get-conversation-list" }))
+      this.refreshConversationList()
     }
     this.socket.onmessage = ({ data }) => { this.processMessage(data) }
+    this.convListRefresher = setInterval(() => {
+      this.refreshConversationList()
+    }, 15000)
   },
 }
 </script>

@@ -8,14 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const (
-	TEXT_ACTION                  = "text"
-	GET_CONVERSATION_LIST_ACTION = "get-conversation-list"
-	CREATE_GROUP_ACTION          = "create-group"
-	JOIN_GROUP_ACTION            = "join-group"
-	LEAVE_GROUP_ACTION           = "leave-group"
-)
-
 type Client struct {
 	Id              string          `json:"id"`
 	conn            *websocket.Conn `json:"-"`
@@ -34,7 +26,7 @@ func NewClient(conn *websocket.Conn) Client {
 
 func (c *Client) StartRead() {
 	for {
-		var req RequestMessage
+		var req ClientRequestMessage
 		if err := c.conn.ReadJSON(&req); err != nil {
 			log.Print("Read from client error: ", err)
 			gRemoveClient(c)
@@ -53,8 +45,9 @@ func (c *Client) StartWrite() {
 				gRemoveClient(c)
 			}
 		case ConvListMessage:
+			// TODO: Change this to only get from db
 			convs := gConvs.Values()
-			err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: GET_CONVERSATION_LIST_ACTION})
+			err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: GET_CONV_LIST_ACTION})
 			if err != nil {
 				log.Println("Write ConvListMessage to client error: ", err)
 				gRemoveClient(c)
@@ -62,6 +55,7 @@ func (c *Client) StartWrite() {
 		case CreateGroupMessage:
 			conv := NewGroupConv(msg.Clients...)
 			gConvs.Store(conv.Id(), conv)
+			GetRedisClient().SendMessage(NewServerRequestMessage(GROUP_CREATED_ACTION, conv.Id()))
 		case JoinGroupMessage:
 			gConvs.ApplyToOne(
 				func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
@@ -82,17 +76,20 @@ func (c *Client) SendTextMessage(msg TextMessage) {
 	}()
 }
 
-func (c *Client) processRequest(req RequestMessage) {
+func (c *Client) processRequest(req ClientRequestMessage) {
 	log.Println(req)
 	switch req.Request {
 	case TEXT_ACTION:
 		if msg, ok := marshalJSON[TextMessage](req.Data); ok {
-			gConvs.RApplyToOne(
+			applied := gConvs.RApplyToOne(
 				func(_ string, conv Conv) bool { return conv.Id() == msg.ReceiverId },
 				func(_ string, conv Conv) { conv.DeliverTextMessage(msg) },
 			)
+			if !applied {
+				GetRedisClient().SendMessage(NewServerRequestMessage(TEXT_OTHER_SERVER_ACTION, msg))
+			}
 		}
-	case GET_CONVERSATION_LIST_ACTION:
+	case GET_CONV_LIST_ACTION:
 		c.messageReceiver <- ConvListMessage{}
 	case CREATE_GROUP_ACTION:
 		c.messageReceiver <- CreateGroupMessage{Clients: []*Client{c}}
