@@ -17,7 +17,7 @@ var (
 		WriteBufferSize: 4096,
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
-	gClientRemover = make(chan *Client)
+	gClientRemover = make(chan string)
 )
 
 func main() {
@@ -47,7 +47,14 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		log.Println("Write IdMessage to client error: ", err)
 		return
 	}
-	GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_CONNECTED_ACTION, client.Id))
+
+	GetRedisClient().SendMessage(NewServerRequestMessage(
+		CLIENT_CONNECTED_ACTION,
+		ClientConnectedMessage{
+			Id:       client.Id,
+			ServerId: gServerId,
+		},
+	))
 
 	gClients.Store(client.Id, client)
 	conv := NewPeerConv(&client)
@@ -58,21 +65,21 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	client.StartRead()
 }
 
-func gRemoveClient(client *Client) {
+func gRemoveClient(clientId string) {
 	go func() {
-		gClientRemover <- client
+		gClientRemover <- clientId
 	}()
 }
 
 func StartRemoveClient() {
-	for client := range gClientRemover {
-		log.Println("Remove client", client)
-		gClients.Delete(client.Id)
-		gConvs.Delete(client.Id)
-		GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_DISCONNECTED_ACTION, client.Id))
+	for clientId := range gClientRemover {
+		log.Println("Remove client", clientId)
+		gClients.Delete(clientId)
+		gConvs.Delete(clientId)
+		GetRedisClient().SendMessage(NewServerRequestMessage(CLIENT_DISCONNECTED_ACTION, clientId))
 		gConvs.Range(func(_ string, conv Conv) bool {
 			if groupConv, ok := conv.(*GroupConv); ok {
-				groupConv.RemoveClient(client)
+				groupConv.RemoveClient(clientId)
 			}
 			return true
 		})

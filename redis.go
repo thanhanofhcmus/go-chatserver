@@ -132,6 +132,41 @@ func (redis *RedisClient) StartSendConvList() {
 
 func (redis *RedisClient) StartListening() {
 	for msg := range redis.pubsub.Channel() {
-		log.Println(msg.Channel, msg.Payload)
+		redis.processRequest(msg.Payload)
+	}
+}
+
+func (redis *RedisClient) processRequest(payload string) {
+	var req ServerRequestMessage
+	if err := json.Unmarshal([]byte(payload), &req); err != nil {
+		log.Printf("redis processRequest, Unmarshal to %T error: %s\n", req, err)
+		return
+	}
+
+	log.Println(req)
+
+	switch req.Request {
+	case TEXT_OTHER_SERVER_ACTION:
+		if msg, ok := marshalJSON[TextMessage](req.Data); ok {
+			gConvs.RApplyToOne(
+				func(_ string, conv Conv) bool { return conv.Id() == msg.ReceiverId },
+				func(_ string, conv Conv) { conv.DeliverTextMessage(msg) },
+			)
+		}
+	case CLIENT_CONNECTED_ACTION:
+		if client, ok := marshalJSON[ClientConnectedMessage](req.Data); ok {
+			conv := RemoteConv{
+				ID:       client.Id,
+				ServerID: client.ServerId,
+				Type:     PEER_TYPE,
+			}
+			gConvs.Store(conv.ID, conv)
+		}
+	case CLIENT_DISCONNECTED_ACTION:
+		if clientId, ok := req.Data.(string); !ok {
+			log.Printf("redis processRequest, cannot parse clientId in %s\n", CLIENT_DISCONNECTED_ACTION)
+		} else {
+			gRemoveClient(clientId)
+		}
 	}
 }

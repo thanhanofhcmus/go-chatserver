@@ -7,6 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	PEER_TYPE  = "peer"
+	GROUP_TYPE = "group"
+)
+
 type Conv interface {
 	Id() string
 	ServerId() string
@@ -35,7 +40,7 @@ func (c PeerConv) MarshalJSON() ([]byte, error) {
 		Id       string `json:"id"`
 		Type     string `json:"type"`
 		ServerId string `json:"severId"`
-	}{Id: c.client.Id, ServerId: c.serverId, Type: "peer"}))
+	}{Id: c.client.Id, ServerId: c.serverId, Type: PEER_TYPE}))
 }
 
 func NewPeerConv(client *Client) PeerConv {
@@ -46,7 +51,7 @@ type GroupConv struct {
 	clients       concurrentMap[string, *Client]
 	id            string
 	serverId      string
-	clientRemover chan *Client
+	clientRemover chan string
 }
 
 func (c *GroupConv) Id() string {
@@ -61,9 +66,9 @@ func (c *GroupConv) AddClient(client *Client) {
 	c.clients.Store(client.Id, client)
 }
 
-func (c *GroupConv) RemoveClient(client *Client) {
+func (c *GroupConv) RemoveClient(clientId string) {
 	go func() {
-		c.clientRemover <- client
+		c.clientRemover <- clientId
 	}()
 }
 
@@ -87,7 +92,7 @@ func (c *GroupConv) MarshalJSON() ([]byte, error) {
 		Id       string `json:"id"`
 		Type     string `json:"type"`
 		ServerId string `json:"serverId"`
-	}{Id: c.id, ServerId: c.serverId, Type: "group"}))
+	}{Id: c.id, ServerId: c.serverId, Type: GROUP_TYPE}))
 }
 
 func NewGroupConv(clients ...*Client) *GroupConv {
@@ -99,12 +104,12 @@ func NewGroupConv(clients ...*Client) *GroupConv {
 		clients:       NewConcurrentMap[string, *Client](),
 		id:            uuid.NewString(),
 		serverId:      gServerId,
-		clientRemover: make(chan *Client),
+		clientRemover: make(chan string),
 	}
 	// start this group remove client goroutine
 	go func() {
-		for client := range conv.clientRemover {
-			conv.clients.Delete(client.Id)
+		for clientId := range conv.clientRemover {
+			conv.clients.Delete(clientId)
 		}
 	}()
 	return conv

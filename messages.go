@@ -2,7 +2,7 @@ package main
 
 const (
 	// server - server actions
-	TEXT_OTHER_SERVER_ACTION   = "text-other-serer"
+	TEXT_OTHER_SERVER_ACTION   = "text-other-server"
 	CLIENT_CONNECTED_ACTION    = "client-connected"
 	CLIENT_DISCONNECTED_ACTION = "client-disconnected"
 	GROUP_CREATED_ACTION       = "group-created"
@@ -28,6 +28,11 @@ func NewServerRequestMessage(request string, data any) ServerRequestMessage {
 		SenderServerId: gServerId,
 		Data:           data,
 	}
+}
+
+type ClientConnectedMessage struct {
+	Id       string `json:"id"`
+	ServerId string `json:"serverId"`
 }
 
 type ClientRequestMessage struct {
