@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/google/uuid"
 )
@@ -93,4 +94,22 @@ func NewGroupConv(clients ...*Client) *GroupConv {
 		}
 	}()
 	return conv
+}
+
+type RemoteConv struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+func NewRemoteConvFromJSON(source string) (c RemoteConv, err error) {
+	err = json.Unmarshal([]byte(source), &c)
+	return
+}
+
+func (c RemoteConv) Id() string {
+	return c.ID
+}
+
+func (c RemoteConv) DeliverTextMessage(msg TextMessage) {
+	log.Printf("Send message %s to client %s\n", msg.Message, c.ID)
 }

@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 var (
+	gServerId = uuid.NewString()
 	gClients  = NewConcurrentMap[string, Client]()
 	gConvs    = NewConcurrentMap[string, Conv]()
 	gUpgrader = websocket.Upgrader{
@@ -23,12 +25,14 @@ var (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	http.Handle("/", http.FileServer(http.Dir("./frontend/dist")))
+	http.Handle("/", http.FileServer(http.Dir("./frontend/dist/assets")))
 	http.HandleFunc("/connect", handleConnections)
 
 	go StartRemoveClient()
 
-	log.Println("serving")
+	go StartSendConvListToRedis()
+
+	log.Printf("%s is serving", gServerId)
 	http.ListenAndServe(":8000", nil)
 }
 
