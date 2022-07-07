@@ -17,11 +17,23 @@ var (
 		Name: "total_client_gauge",
 		Help: "The total number of clients currently connecting",
 	})
+
+	promRequestCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "total_request_counter",
+		Help: "The total number of requests the server received",
+	})
 )
 
 func init() {
 	prometheus.MustRegister(promClientCounter)
+	prometheus.MustRegister(promRequestCounter)
 	prometheus.MustRegister(collectors.NewBuildInfoCollector())
+}
+
+func IncreaseRequestCounter() {
+	go func() {
+		promRequestCounter.Inc()
+	}()
 }
 
 func StartSendMetric() {

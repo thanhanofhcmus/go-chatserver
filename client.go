@@ -77,6 +77,7 @@ func (c *Client) SendTextMessage(msg TextMessage) {
 
 func (c *Client) processRequest(req ClientRequestMessage) {
 	log.Println(req)
+	IncreaseRequestCounter()
 	switch req.Request {
 	case TEXT_ACTION:
 		if msg, ok := marshalJSON[TextMessage](req.Data); ok {
