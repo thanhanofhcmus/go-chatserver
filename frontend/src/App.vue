@@ -91,14 +91,14 @@ export default {
     },
   },
   mounted() {
-    this.socket = new WebSocket(`ws://localhost:8000/connect`)
+    this.socket = new WebSocket(`ws://localhost:8080/connect`)
     this.socket.onopen = () => {
       this.refreshConversationList()
     }
     this.socket.onmessage = ({ data }) => { this.processMessage(data) }
     this.convListRefresher = setInterval(() => {
       this.refreshConversationList()
-    }, 1000)
+    }, 5000)
   },
 }
 </script>

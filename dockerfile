@@ -2,9 +2,12 @@ FROM golang:latest
 
 WORKDIR /app
 
-RUN mkdir -p ./frontend/dist
+RUN mkdir -p ./frontend/dist/assets
 
-COPY frontend/dist/* /app/frontend/dist
+COPY frontend/dist/assets/* /app/frontend/dist/assets
+
+COPY frontend/dist/index.html /app/frontend/dist
+COPY frontend/dist/favicon.ico /app/frontend/dist
 
 COPY go.mod go.sum ./
 
