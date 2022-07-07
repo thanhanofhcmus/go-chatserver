@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 )
 
 const (
-	REDIS_ADDR   = "0.0.0.0:6379"
 	CHAT_CHANNEL = "chat"
 	EXPIRY_TIME  = time.Second * 30
 	SLEEP_TIME   = time.Second * 15
@@ -22,6 +22,8 @@ const (
 )
 
 var (
+	REDIS_ADDR string
+
 	gRedisClient      *RedisClient = nil
 	gRedisClientMutex sync.Mutex
 )
@@ -32,30 +34,48 @@ type RedisClient struct {
 	ctx    context.Context
 }
 
+func init() {
+	if env, ok := os.LookupEnv("REDIS_ADDR"); ok {
+		REDIS_ADDR = env
+	} else {
+		REDIS_ADDR = "localhost:6379"
+	}
+	log.Println("Redis addr: ", REDIS_ADDR)
+}
+
 func GetRedisClient() *RedisClient {
 	if gRedisClient == nil {
 		gRedisClientMutex.Lock()
 		defer gRedisClientMutex.Unlock()
 
-		if gRedisClient == nil {
-			ctx := context.Background()
-			client := redis.NewClient(&redis.Options{
-				Addr:     REDIS_ADDR,
-				Password: "",
-				DB:       0,
-			})
-			pubsub := client.Subscribe(ctx, CHAT_CHANNEL)
-			if _, err := pubsub.Receive(ctx); err != nil {
-				panic(err)
-			}
+		if gRedisClient != nil {
+			return gRedisClient
+		}
 
-			gRedisClient = &RedisClient{
-				ctx:    ctx,
-				client: client,
-				pubsub: pubsub,
-			}
+		ctx := context.Background()
+		client := redis.NewClient(&redis.Options{
+			Addr:     REDIS_ADDR,
+			Password: "",
+			DB:       0,
+		})
+		pubsub := client.Subscribe(ctx, CHAT_CHANNEL)
+		if _, err := pubsub.Receive(ctx); err != nil {
+			panic(err)
+		}
+
+		client = redis.NewClient(&redis.Options{
+			Addr:     REDIS_ADDR,
+			Password: "",
+			DB:       0,
+		})
+
+		gRedisClient = &RedisClient{
+			ctx:    ctx,
+			client: client,
+			pubsub: pubsub,
 		}
 	}
+
 	return gRedisClient
 }
 

@@ -33,7 +33,7 @@ func main() {
 	time.Sleep(time.Second)
 
 	log.Printf("%s is serving\n", gServerId)
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe(":8080", nil)
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
