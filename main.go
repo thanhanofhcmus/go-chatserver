@@ -30,6 +30,8 @@ func main() {
 	go GetRedisClient().StartSendConvList()
 	go GetRedisClient().StartListening()
 
+	go StartSendMetric()
+
 	time.Sleep(time.Second)
 
 	log.Printf("%s is serving\n", gServerId)
