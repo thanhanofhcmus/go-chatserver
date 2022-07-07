@@ -22,6 +22,11 @@ var (
 		Name: "total_request_counter",
 		Help: "The total number of requests the server received",
 	})
+
+	promRedisRequestCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "total_redis_request_counter",
+		Help: "The total number of requests the server received form redis",
+	})
 )
 
 func init() {
@@ -33,6 +38,12 @@ func init() {
 func IncreaseRequestCounter() {
 	go func() {
 		promRequestCounter.Inc()
+	}()
+}
+
+func IncreaseRedisRequestCounter() {
+	go func() {
+		promRedisRequestCounter.Inc()
 	}()
 }
 

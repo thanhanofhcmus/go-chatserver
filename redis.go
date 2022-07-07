@@ -162,6 +162,7 @@ func (redis *RedisClient) processRequest(payload string) {
 
 	log.Println(req)
 	IncreaseRequestCounter()
+	IncreaseRedisRequestCounter()
 
 	if req.SenderServerId == gServerId {
 		return
