@@ -7,20 +7,32 @@ volumes:
     driver: local
 
 services:
-  chat_server:
-    container_name: chat_server
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - REDIS_ADDR="redis:6379"
-
   redis:
     image: redis:latest
     container_name: redis
     ports:
       - "6379:6379"
     restart: unless-stopped
+
+  chat_server:
+    container_name: chat_server
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    environment:
+      REDIS_ADDR: redis:6379
+
+  chat_server2:
+    container_name: chat_server2
+    build: .
+    ports:
+      - "8081:8080"
+    depends_on:
+      - redis
+    environment:
+      REDIS_ADDR: redis:6379
 
   prometheus:
     image: prom/prometheus:latest
