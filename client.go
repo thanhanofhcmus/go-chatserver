@@ -54,7 +54,11 @@ func (c *Client) StartWrite() {
 		case CreateGroupMessage:
 			conv := NewGroupConv(msg.Clients...)
 			gConvs.Store(conv.Id(), conv)
-			GetRedisClient().SendMessage(NewServerRequestMessage(GROUP_CREATED_ACTION, conv.Id()))
+			gcMsg := GroupCreatedMessage{
+				Id:       conv.id,
+				ServerId: gServerId,
+			}
+			GetRedisClient().SendMessage(NewServerRequestMessage(GROUP_CREATED_ACTION, gcMsg))
 		case JoinGroupMessage:
 			gConvs.ApplyToOne(
 				func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
@@ -77,7 +81,6 @@ func (c *Client) SendTextMessage(msg TextMessage) {
 
 func (c *Client) processRequest(req ClientRequestMessage) {
 	log.Println(req)
-	IncreaseRequestCounter()
 	switch req.Request {
 	case TEXT_ACTION:
 		if msg, ok := marshalJSON[TextMessage](req.Data); ok {

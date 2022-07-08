@@ -117,7 +117,7 @@ func (redis *RedisClient) GetConvList() (convs []Conv) {
 
 		for _, key := range keys {
 			if conv, err := NewRemoteConvFromJSON(key); err != nil {
-				log.Printf("Marshal JSON RemoveConv error: %s\n", err)
+				log.Printf("Redis marshal JSON RemoveConv error: %s\n", err)
 			} else {
 				convs = append(convs, conv)
 			}
