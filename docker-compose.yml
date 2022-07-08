@@ -42,3 +42,10 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     restart: unless-stopped
+
+  redis-exporer:
+    image: oliver006/redis_exporter
+    container_name: redis_exporter
+    ports:
+      - "9121:9121"
+    command: -redis.addr redis://redis:6379
