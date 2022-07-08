@@ -59,6 +59,9 @@ func GetRedisClient() *RedisClient {
 			DB:       0,
 		})
 		pubsub := client.Subscribe(ctx, CHAT_CHANNEL)
+		if _, err := pubsub.Receive(ctx); err != nil {
+			panic(err)
+		}
 
 		client = redis.NewClient(&redis.Options{
 			Addr:     REDIS_ADDR,

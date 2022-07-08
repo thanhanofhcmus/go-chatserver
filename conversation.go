@@ -136,4 +136,5 @@ func (c RemoteConv) ServerId() string {
 
 func (c RemoteConv) DeliverTextMessage(msg TextMessage) {
 	log.Printf("Send message %s to client %s\n", msg.Message, c.ID)
+	GetRedisClient().SendMessage(NewServerRequestMessage(TEXT_OTHER_SERVER_ACTION, msg))
 }
