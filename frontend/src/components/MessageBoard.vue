@@ -22,7 +22,7 @@ import SendIcon from './icons/Send.vue';
         <li class="space-y-2">
           <template v-for="msg in messages">
             <UserMessage v-if="msg.senderId === id" :text="msg.message" />
-            <OtherMessage v-else :text="msg.message" :id="msg.senderId"/>
+            <OtherMessage v-else :text="msg.message" :id="msg.senderId" />
           </template>
         </li>
       </div>
@@ -30,7 +30,7 @@ import SendIcon from './icons/Send.vue';
       <div class="flex items-center justify-between w-full p-3 border-t border-gray-300">
         <input type="text" placeholder="Message"
           class="block w-full py-2 pl-4 mx-3 bg-gray-100 rounded-full outline-none focus:text-gray-700" name="message"
-          v-model="text" @keyup.enter="onSendClick" required />
+          ref="textMessage" @keyup.enter="onSendClick" required />
         <button type="submit" @click="onSendClick">
           <SendIcon />
         </button>
@@ -48,7 +48,11 @@ export default {
   },
   methods: {
     onSendClick() {
-      this.sendMessage(this.otherConversation, this.text)
+
+      this.sendMessage(this.otherConversation, this.$refs.textMessage.value)
+      this.$refs.textMessage.value = ""
+
+      // this.sendMessage(this.otherConversation, this.text)
       this.text = ""
     }
   }

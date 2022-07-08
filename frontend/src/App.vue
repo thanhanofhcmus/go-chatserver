@@ -91,7 +91,8 @@ export default {
     },
   },
   mounted() {
-    this.socket = new WebSocket(`ws://localhost:8080/connect`)
+    // this.socket = new WebSocket(`ws://localhost:8080/connect`)
+    this.socket = new WebSocket(`ws://${location.host}/connect`)
     this.socket.onopen = () => {
       this.refreshConversationList()
     }
