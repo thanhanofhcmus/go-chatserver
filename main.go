@@ -11,7 +11,7 @@ import (
 
 var (
 	gServerId = uuid.NewString()
-	gClients  = NewConcurrentMap[string, Client]()
+	gClients  = NewConcurrentMap[string, LocalClient]()
 	gConvs    = NewConcurrentMap[string, Conv]()
 	gUpgrader = websocket.Upgrader{
 		ReadBufferSize:  4096,
@@ -47,7 +47,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer socket.Close()
 	client := NewClient(socket)
 
-	if err := socket.WriteJSON(IdMessage{Id: client.Id, Type: ID_ACTION}); err != nil {
+	if err := socket.WriteJSON(IdMessage{Id: client.id, Type: ID_ACTION}); err != nil {
 		log.Println("Write IdMessage to client error: ", err)
 		return
 	}
@@ -55,14 +55,14 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	GetRedisClient().SendMessage(NewServerRequestMessage(
 		CLIENT_CONNECTED_ACTION,
 		ClientConnectedMessage{
-			Id:       client.Id,
+			Id:       client.id,
 			ServerId: gServerId,
 		},
 	))
 
-	gClients.Store(client.Id, client)
+	gClients.Store(client.id, client)
 	conv := NewPeerConv(&client)
-	gConvs.Store(client.Id, conv)
+	gConvs.Store(client.id, conv)
 
 	go client.StartWrite()
 	// start here instead of spawn new goroutine so that we can defer socket.close()

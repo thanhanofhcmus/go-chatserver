@@ -6,6 +6,8 @@ const (
 	CLIENT_CONNECTED_ACTION    = "client-connected"
 	CLIENT_DISCONNECTED_ACTION = "client-disconnected"
 	GROUP_CREATED_ACTION       = "group-created"
+	GROUP_CLIENT_JOINED        = "group-client-joined"
+	GROUP_CLIENT_LEAVED        = "group-client-leaved"
 
 	// client - server actions
 	ID_ACTION            = "id"
@@ -40,6 +42,18 @@ type GroupCreatedMessage struct {
 	ServerId string `json:"serverId"`
 }
 
+type GroupClientJoinedMessage struct {
+	ClientId string `json:"clientId"`
+	GroupId  string `json:"groupId"`
+	ServerId string `json:"serverId"`
+}
+
+type GroupClientLeavedMessage struct {
+	ClientId string `json:"clientId"`
+	GroupId  string `json:"groupId"`
+	ServerId string `json:"serverId"`
+}
+
 type ClientRequestMessage struct {
 	Request string `json:"request"`
 	Data    any    `json:"data"`
@@ -63,7 +77,7 @@ type ConvListMessage struct {
 }
 
 type CreateGroupMessage struct {
-	Clients []*Client
+	Clients []*LocalClient
 }
 
 type JoinGroupMessage struct {

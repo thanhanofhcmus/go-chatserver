@@ -205,5 +205,35 @@ func (redis *RedisClient) processRequest(payload string) {
 			}
 			gConvs.Store(conv.ID, conv)
 		}
+	case GROUP_CLIENT_JOINED:
+		if msg, ok := marshalJSON[GroupClientJoinedMessage](req.Data); ok {
+			gConvs.Range(func(_ string, c Conv) bool {
+				if c.Id() != msg.GroupId {
+					return true // continue to search
+				}
+				// if this server hold the true instance of this group conv
+				grConv, ok := c.(*GroupConv)
+				if !ok {
+					return true
+				}
+				grConv.AddClient(NewRemoteClient(msg.ClientId, msg.GroupId))
+				return false
+			})
+		}
+	case GROUP_CLIENT_LEAVED:
+		if msg, ok := marshalJSON[GroupClientLeavedMessage](req.Data); ok {
+			gConvs.Range(func(_ string, c Conv) bool {
+				if c.Id() != msg.GroupId {
+					return true // continue to search
+				}
+				// if this server hold the true instance of this group conv
+				grConv, ok := c.(*GroupConv)
+				if !ok {
+					return true
+				}
+				grConv.RemoveClient(msg.GroupId)
+				return false
+			})
+		}
 	}
 }

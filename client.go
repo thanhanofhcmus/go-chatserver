@@ -8,48 +8,53 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Client struct {
-	Id              string          `json:"id"`
-	conn            *websocket.Conn `json:"-"`
+type Client interface {
+	SendTextMessage(TextMessage)
+	Id() string
+}
+
+type LocalClient struct {
+	id              string
+	conn            *websocket.Conn
 	messageReceiver chan any
 }
 
-func NewClient(conn *websocket.Conn) Client {
+func NewClient(conn *websocket.Conn) LocalClient {
 	id := uuid.NewString()
 	log.Println("NewClient", id)
-	return Client{
-		Id:              id,
+	return LocalClient{
+		id:              id,
 		conn:            conn,
 		messageReceiver: make(chan any),
 	}
 }
 
-func (c *Client) StartRead() {
+func (c *LocalClient) StartRead() {
 	for {
 		var req ClientRequestMessage
 		if err := c.conn.ReadJSON(&req); err != nil {
 			log.Print("Read from client error: ", err)
-			gRemoveClient(c.Id)
+			gRemoveClient(c.id)
 			return
 		}
 		go c.processRequest(req)
 	}
 }
 
-func (c *Client) StartWrite() {
+func (c *LocalClient) StartWrite() {
 	for message := range c.messageReceiver {
 		switch msg := message.(type) {
 		case TextMessage:
 			if err := c.conn.WriteJSON(msg); err != nil {
 				log.Println("Write TextMessage to client error: ", err)
-				gRemoveClient(c.Id)
+				gRemoveClient(c.id)
 			}
 		case ConvListMessage:
 			convs := gConvs.Values()
 			err := c.conn.WriteJSON(ConvListMessage{Conversations: convs, Type: GET_CONV_LIST_ACTION})
 			if err != nil {
 				log.Println("Write ConvListMessage to client error: ", err)
-				gRemoveClient(c.Id)
+				gRemoveClient(c.id)
 			}
 		case CreateGroupMessage:
 			conv := NewGroupConv(msg.Clients...)
@@ -60,26 +65,50 @@ func (c *Client) StartWrite() {
 			}
 			GetRedisClient().SendMessage(NewServerRequestMessage(GROUP_CREATED_ACTION, gcMsg))
 		case JoinGroupMessage:
-			gConvs.ApplyToOne(
+			applied := gConvs.ApplyToOne(
 				func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
 				func(_ string, conv Conv) { conv.(*GroupConv).AddClient(c) },
 			)
+			if !applied {
+				GetRedisClient().SendMessage(NewServerRequestMessage(
+					GROUP_CLIENT_JOINED,
+					GroupClientJoinedMessage{
+						ClientId: c.id,
+						GroupId:  msg.GroupId,
+						ServerId: gServerId,
+					},
+				))
+			}
 		case LeaveGroupMessage:
-			gConvs.ApplyToOne(
+			applied := gConvs.ApplyToOne(
 				func(_ string, conv Conv) bool { return conv.Id() == msg.GroupId },
-				func(_ string, conv Conv) { conv.(*GroupConv).RemoveClient(c.Id) },
+				func(_ string, conv Conv) { conv.(*GroupConv).RemoveClient(c.id) },
 			)
+			if !applied {
+				GetRedisClient().SendMessage(NewServerRequestMessage(
+					GROUP_CLIENT_LEAVED,
+					GroupClientJoinedMessage{
+						ClientId: c.id,
+						GroupId:  msg.GroupId,
+						ServerId: gServerId,
+					},
+				))
+			}
 		}
 	}
 }
 
-func (c *Client) SendTextMessage(msg TextMessage) {
+func (c *LocalClient) Id() string {
+	return c.id
+}
+
+func (c *LocalClient) SendTextMessage(msg TextMessage) {
 	go func() {
 		c.messageReceiver <- msg
 	}()
 }
 
-func (c *Client) processRequest(req ClientRequestMessage) {
+func (c *LocalClient) processRequest(req ClientRequestMessage) {
 	log.Println(req)
 	switch req.Request {
 	case TEXT_ACTION:
@@ -95,7 +124,7 @@ func (c *Client) processRequest(req ClientRequestMessage) {
 	case GET_CONV_LIST_ACTION:
 		c.messageReceiver <- ConvListMessage{}
 	case CREATE_GROUP_ACTION:
-		c.messageReceiver <- CreateGroupMessage{Clients: []*Client{c}}
+		c.messageReceiver <- CreateGroupMessage{Clients: []*LocalClient{c}}
 	case JOIN_GROUP_ACTION:
 		if msg, ok := marshalJSON[JoinGroupMessage](req.Data); ok {
 			c.messageReceiver <- msg
@@ -119,4 +148,25 @@ func marshalJSON[T any](data any) (res T, ok bool) {
 	}
 	ok = true
 	return
+}
+
+// Remote client is used inside GroupConv
+type RemoteClient struct {
+	id       string
+	serverId string
+}
+
+func NewRemoteClient(id, serverId string) RemoteClient {
+	return RemoteClient{
+		id:       id,
+		serverId: serverId,
+	}
+}
+
+func (c RemoteClient) Id() string {
+	return c.id
+}
+
+func (c RemoteClient) SendTextMessage(msg TextMessage) {
+
 }
